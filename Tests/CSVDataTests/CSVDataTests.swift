@@ -1,5 +1,5 @@
 import XCTest
-@testable import SwiftCSVData
+@testable import CSVData
 
 private enum TestSoppingItem: String, CSVFormat {
     case id
