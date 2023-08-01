@@ -19,7 +19,7 @@ public protocol CSVFormat: RawRepresentable, CaseIterable, Hashable {
     var title: String { get }
 }
 
-extension CSVFormat {
+public extension CSVFormat {
     var title: String {
         "\(rawValue)"
     }
