@@ -16,42 +16,48 @@
 import Foundation
 
 public class CSVData<T: CSVFormat> {
+    public typealias CSVRow = [T: String]
+
+    public subscript(index: Int) -> CSVRow {
+        get {
+            rows[index]
+        }
+
+        set {
+            rows[index] = newValue
+        }
+    }
+
     // MARK: - Properties
-    public var rows = [[T: String]]()
+    public var rows = [CSVRow]()
 
     // MARK: - Private properties
     private let separator: Character
     private let rowSeparator: Character
 
     // MARK: - Initializers
-    public init<Item>(
+    public init(separator: Character = Character(";"), rowSeparator: Character = Character("\n")) {
+        self.separator = separator
+        self.rowSeparator = rowSeparator
+    }
+
+    public convenience init<Item>(
         items: [Item],
         valueForItemInColumn: (_ item: Item, _ column: T) -> String,
         separator: Character = Character(";"),
         rowSeparator: Character = Character("\n")
     ) {
-        self.separator = separator
-        self.rowSeparator = rowSeparator
-
-        for rowIndex in 0 ..< items.count {
-            var row = [T: String]()
-
-            for column in T.allCases {
-                row[column] = valueForItemInColumn(items[rowIndex], column)
-            }
-
-            rows.append(row)
-        }
+        self.init(separator: separator, rowSeparator: rowSeparator)
+        appendRows(for: items, valueForItemInColumn: valueForItemInColumn)
     }
 
-    public init(
+    public convenience init(
         csvString: String,
         separator: Character = Character(";"),
         rowSeparator: Character = Character("\n"),
         continueOnInvalidRow: Bool = false
     ) throws {
-        self.separator = separator
-        self.rowSeparator = rowSeparator
+        self.init(separator: separator, rowSeparator: rowSeparator)
 
         let numberOfColumns = T.allCases.count
 
@@ -64,7 +70,7 @@ public class CSVData<T: CSVFormat> {
         }
 
         for rowString in rows {
-            var row = [T: String]()
+            var row = CSVRow()
             let columns = rowString.split(separator: separator)
 
             if columns.count != numberOfColumns {
@@ -95,6 +101,26 @@ public class CSVData<T: CSVFormat> {
     }
 
     // MARK: - Functions
+    public func appendRow(valueForColumn: (_ column: T) -> String) {
+        appendRows(for: [0]) { _ , column in
+            valueForColumn(column)
+        }
+    }
+
+    public func appendRows<Item>(for items: [Item], valueForItemInColumn: (_ item: Item, _ column: T) -> String) {
+        rows.append(contentsOf: Self.makeRows(for: items, valueForItemInColumn: valueForItemInColumn))
+    }
+
+    public func insertRow(at index: Int, valueForColumn: (_ column: T) -> String) {
+        rows.insert(contentsOf: Self.makeRows(for: [0], valueForItemInColumn: { _, column in
+            valueForColumn(column)
+        }), at: index)
+    }
+
+    public func insertRows<Item>(for items: [Item], at index: Int, valueForItemInColumn: (_ item: Item, _ column: T) -> String) {
+        rows.insert(contentsOf: Self.makeRows(for: items, valueForItemInColumn: valueForItemInColumn), at: index)
+    }
+
     public func csvString() -> String {
         var csvString = ""
 
@@ -123,5 +149,22 @@ public class CSVData<T: CSVFormat> {
         }
 
         return csvString
+    }
+
+    // MARK: - Private functions
+    private static func makeRows<Item>(for items: [Item], valueForItemInColumn: (_ item: Item, _ column: T) -> String) -> [CSVRow] {
+        var rows = [CSVRow]()
+
+        for rowIndex in 0 ..< items.count {
+            var row = CSVRow()
+
+            for column in T.allCases {
+                row[column] = valueForItemInColumn(items[rowIndex], column)
+            }
+
+            rows.append(row)
+        }
+
+        return rows
     }
 }
