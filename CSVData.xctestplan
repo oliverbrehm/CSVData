@@ -1,0 +1,32 @@
+{
+  "configurations" : [
+    {
+      "id" : "ACD6B403-ECC8-4981-9846-880E379F8DAF",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : {
+      "targets" : [
+        {
+          "containerPath" : "container:",
+          "identifier" : "CSVData",
+          "name" : "CSVData"
+        }
+      ]
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "CSVDataTests",
+        "name" : "CSVDataTests"
+      }
+    }
+  ],
+  "version" : 1
+}
