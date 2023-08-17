@@ -30,48 +30,59 @@ public class CSVData<T: CSVFormat> {
 
     // MARK: - Properties
     public var rows = [CSVRow]()
-
-    // MARK: - Private properties
-    private let separator: Character
-    private let rowSeparator: Character
+    public let rowSeparator: Character
+    public let columnSeparator: Character
 
     // MARK: - Initializers
-    public init(separator: Character = Character(";"), rowSeparator: Character = Character("\n")) {
-        self.separator = separator
+    public init(rowSeparator: Character = CSVConstants.defaultRowSeparator, columnSeparator: Character = CSVConstants.defaultColumnSeparator) {
         self.rowSeparator = rowSeparator
+        self.columnSeparator = columnSeparator
     }
 
     public convenience init<Item>(
         items: [Item],
         valueForItemInColumn: (_ item: Item, _ column: T) -> String,
-        separator: Character = Character(";"),
-        rowSeparator: Character = Character("\n")
+        rowSeparator: Character = CSVConstants.defaultRowSeparator,
+        columnSeparator: Character = CSVConstants.defaultColumnSeparator
     ) {
-        self.init(separator: separator, rowSeparator: rowSeparator)
+        self.init(rowSeparator: rowSeparator, columnSeparator: columnSeparator)
         appendRows(for: items, valueForItemInColumn: valueForItemInColumn)
     }
 
     public convenience init(
         csvString: String,
-        separator: Character = Character(";"),
-        rowSeparator: Character = Character("\n"),
+        rowSeparator: Character? = nil,
+        columnSeparator: Character? = nil,
         continueOnInvalidRow: Bool = false
     ) throws {
-        self.init(separator: separator, rowSeparator: rowSeparator)
+        let actualRowSeparator: Character
+        let actualColumnSeparator: Character
+
+        if let rowSeparator, let columnSeparator {
+            actualRowSeparator = rowSeparator
+            actualColumnSeparator = columnSeparator
+        } else if let rowSeparator, columnSeparator == nil {
+            actualRowSeparator = rowSeparator
+            actualColumnSeparator = Self.guessSeparatorForRowSeparator(rowSeparator, in: csvString)
+        } else {
+            (actualRowSeparator, actualColumnSeparator) = Self.guessSeparators(in: csvString)
+        }
+
+        self.init(rowSeparator: actualRowSeparator, columnSeparator: actualColumnSeparator)
 
         let numberOfColumns = T.allCases.count
 
-        var rows = csvString.replacingOccurrences(of: "\r", with: "").split(separator: rowSeparator)
+        var rows = csvString.replacingOccurrences(of: "\r", with: "").split(separator: actualRowSeparator)
 
         let header = rows.removeFirst()
 
-        guard header.split(separator: separator).count == numberOfColumns else {
+        guard header.split(separator: actualColumnSeparator).count == numberOfColumns else {
             throw CSVParseError.invalidHeaderFormat
         }
 
         for rowString in rows {
             var row = CSVRow()
-            let columns = rowString.split(separator: separator)
+            let columns = rowString.split(separator: actualColumnSeparator)
 
             if columns.count != numberOfColumns {
                 if continueOnInvalidRow {
@@ -92,17 +103,22 @@ public class CSVData<T: CSVFormat> {
 
     public convenience init(
         url: URL,
-        separator: Character = Character(";"),
-        rowSeparator: Character = Character("\n"),
+        columnSeparator: Character? = nil,
+        rowSeparator: Character? = nil,
         continueOnInvalidRow: Bool = false
     ) throws {
         let csvString = try String(contentsOf: url)
-        try self.init(csvString: csvString, separator: separator, rowSeparator: rowSeparator, continueOnInvalidRow: continueOnInvalidRow)
+        try self.init(
+            csvString: csvString,
+            rowSeparator: rowSeparator,
+            columnSeparator: columnSeparator,
+            continueOnInvalidRow: continueOnInvalidRow
+        )
     }
 
     // MARK: - Functions
     public func appendRow(valueForColumn: (_ column: T) -> String) {
-        appendRows(for: [0]) { _ , column in
+        appendRows(for: [0]) { _, column in
             valueForColumn(column)
         }
     }
@@ -117,7 +133,11 @@ public class CSVData<T: CSVFormat> {
         }), at: index)
     }
 
-    public func insertRows<Item>(for items: [Item], at index: Int, valueForItemInColumn: (_ item: Item, _ column: T) -> String) {
+    public func insertRows<Item>(
+        for items: [Item],
+        at index: Int,
+        valueForItemInColumn: (_ item: Item, _ column: T) -> String
+    ) {
         rows.insert(contentsOf: Self.makeRows(for: items, valueForItemInColumn: valueForItemInColumn), at: index)
     }
 
@@ -128,7 +148,7 @@ public class CSVData<T: CSVFormat> {
         for (index, column) in T.allCases.enumerated() {
             csvString.append(column.title)
             if index < T.allCases.count - 1 {
-                csvString.append(separator)
+                csvString.append(columnSeparator)
             }
         }
         csvString.append(rowSeparator)
@@ -140,7 +160,7 @@ public class CSVData<T: CSVFormat> {
             for (index, column) in T.allCases.enumerated() {
                 rowString.append(row[column] ?? "")
                 if index < row.values.count - 1 {
-                    rowString.append(separator)
+                    rowString.append(columnSeparator)
                 }
             }
 
@@ -152,7 +172,10 @@ public class CSVData<T: CSVFormat> {
     }
 
     // MARK: - Private functions
-    private static func makeRows<Item>(for items: [Item], valueForItemInColumn: (_ item: Item, _ column: T) -> String) -> [CSVRow] {
+    private static func makeRows<Item>(
+        for items: [Item],
+        valueForItemInColumn: (_ item: Item, _ column: T) -> String
+    ) -> [CSVRow] {
         var rows = [CSVRow]()
 
         for rowIndex in 0 ..< items.count {
@@ -166,5 +189,30 @@ public class CSVData<T: CSVFormat> {
         }
 
         return rows
+    }
+
+    private static func guessSeparatorForRowSeparator(_ rowSeparator: Character, in csvString: String) -> Character {
+        let rows = csvString.split(separator: rowSeparator)
+
+        if rows.count <= 1 {
+            return CSVConstants.defaultColumnSeparator
+        }
+
+        for separator in CSVConstants.possibleSeparators {
+            let headerFields = rows[0].split(separator: separator)
+            if headerFields.count > 1, headerFields.count == rows[1].split(separator: separator).count {
+                return separator
+            }
+        }
+
+        return CSVConstants.defaultColumnSeparator
+    }
+
+    private static func guessSeparators(in csvString: String) -> (row: Character, column: Character) {
+        for rowSeparator in CSVConstants.possibleSeparators where csvString.split(separator: rowSeparator).count > 1 {
+            return (rowSeparator, guessSeparatorForRowSeparator(rowSeparator, in: csvString))
+        }
+
+        return (CSVConstants.defaultRowSeparator, CSVConstants.defaultColumnSeparator)
     }
 }
