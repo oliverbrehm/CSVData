@@ -16,18 +16,6 @@
 import Foundation
 
 public class CSVData<T: CSVFormat> {
-    public typealias CSVRow = [T: String]
-
-    public subscript(index: Int) -> CSVRow {
-        get {
-            rows[index]
-        }
-
-        set {
-            rows[index] = newValue
-        }
-    }
-
     // MARK: - Properties
     public var rows = [CSVRow]()
     public let rowSeparator: Character
@@ -39,6 +27,7 @@ public class CSVData<T: CSVFormat> {
         self.columnSeparator = columnSeparator
     }
 
+    // TODO: column configuration for import and export
     public convenience init<Item>(
         items: [Item],
         valueForItemInColumn: (_ item: Item, _ column: T) -> String,
@@ -53,7 +42,8 @@ public class CSVData<T: CSVFormat> {
         csvString: String,
         rowSeparator: Character? = nil,
         columnSeparator: Character? = nil,
-        continueOnInvalidRow: Bool = false
+        continueOnInvalidRow: Bool = false,
+        columnConfiguration: ColumnConfiguration<T> = .all
     ) throws {
         let actualRowSeparator: Character
         let actualColumnSeparator: Character
@@ -70,7 +60,8 @@ public class CSVData<T: CSVFormat> {
 
         self.init(rowSeparator: actualRowSeparator, columnSeparator: actualColumnSeparator)
 
-        let numberOfColumns = T.allCases.count
+        let includedColumns = T.includedColumns(for: columnConfiguration)
+        let numberOfColumns = includedColumns.count
 
         var rows = csvString.replacingOccurrences(of: "\r", with: "").split(separator: actualRowSeparator)
 
@@ -92,7 +83,7 @@ public class CSVData<T: CSVFormat> {
                 }
             }
 
-            for (index, column) in T.allCases.enumerated() {
+            for (index, column) in includedColumns.enumerated() {
                 let value = String(columns[index])
                 row[column] = value
             }

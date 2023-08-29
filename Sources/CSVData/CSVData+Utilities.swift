@@ -15,23 +15,22 @@
 
 import Foundation
 
-public protocol CSVFormat: RawRepresentable, CaseIterable, Hashable {
-    var title: String { get }
-}
+extension CSVData {
+    public typealias CSVRow = [T: String]
 
-public extension CSVFormat {
-    var title: String {
-        "\(rawValue)"
+    public subscript(index: Int) -> CSVRow {
+        get {
+            rows[index]
+        }
+
+        set {
+            rows[index] = newValue
+        }
     }
 
-    static func includedColumns(for columnConfiguration: CSVData<Self>.ColumnConfiguration<Self>) -> [Self] {
-        switch columnConfiguration {
-        case .all:
-            return Array(allCases)
-        case .allBut(columns: let columns):
-            return Array(allCases).filter { !columns.contains($0) }
-        case .includeOnly(columns: let columns):
-            return columns
-        }
+    public enum ColumnConfiguration<T: CSVFormat> {
+        case all
+        case allBut(columns: [T])
+        case includeOnly(columns: [T])
     }
 }
