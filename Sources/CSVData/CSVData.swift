@@ -27,7 +27,6 @@ public class CSVData<T: CSVFormat> {
         self.columnSeparator = columnSeparator
     }
 
-    // TODO: column configuration for import and export
     public convenience init<Item>(
         items: [Item],
         valueForItemInColumn: (_ item: Item, _ column: T) -> String,
@@ -42,8 +41,7 @@ public class CSVData<T: CSVFormat> {
         csvString: String,
         rowSeparator: Character? = nil,
         columnSeparator: Character? = nil,
-        continueOnInvalidRow: Bool = false,
-        columnConfiguration: ColumnConfiguration<T> = .all
+        continueOnInvalidRow: Bool = false
     ) throws {
         let actualRowSeparator: Character
         let actualColumnSeparator: Character
@@ -60,22 +58,26 @@ public class CSVData<T: CSVFormat> {
 
         self.init(rowSeparator: actualRowSeparator, columnSeparator: actualColumnSeparator)
 
-        let includedColumns = T.includedColumns(for: columnConfiguration)
-        let numberOfColumns = includedColumns.count
-
         var rows = csvString.replacingOccurrences(of: "\r", with: "").split(separator: actualRowSeparator)
 
         let header = rows.removeFirst()
 
-        guard header.split(separator: actualColumnSeparator).count == numberOfColumns else {
-            throw CSVParseError.invalidHeaderFormat
+        var includedColumns = [T]()
+        for columnTitle in header.split(separator: actualColumnSeparator) {
+            if let column = T.allCases.first(where: { $0.title == columnTitle }) {
+                includedColumns.append(column)
+            } else if let value = String(columnTitle) as? T.RawValue, let column = T(rawValue: value) {
+                includedColumns.append(column)
+            } else {
+                throw CSVParseError.invalidHeaderField(String(columnTitle))
+            }
         }
 
         for rowString in rows {
             var row = CSVRow()
             let columns = rowString.split(separator: actualColumnSeparator)
 
-            if columns.count != numberOfColumns {
+            if columns.count != includedColumns.count {
                 if continueOnInvalidRow {
                     continue
                 } else {
@@ -132,13 +134,15 @@ public class CSVData<T: CSVFormat> {
         rows.insert(contentsOf: Self.makeRows(for: items, valueForItemInColumn: valueForItemInColumn), at: index)
     }
 
-    public func csvString() -> String {
+    public func csvString(columnConfiguration: ColumnConfiguration<T> = .all) -> String {
         var csvString = ""
 
+        let columns = T.includedColumns(for: columnConfiguration)
+
         // write header fields
-        for (index, column) in T.allCases.enumerated() {
+        for (index, column) in columns.enumerated() {
             csvString.append(column.title)
-            if index < T.allCases.count - 1 {
+            if index < columns.count - 1 {
                 csvString.append(columnSeparator)
             }
         }
@@ -148,9 +152,9 @@ public class CSVData<T: CSVFormat> {
         for row in rows {
             var rowString = ""
 
-            for (index, column) in T.allCases.enumerated() {
+            for (index, column) in columns.enumerated() {
                 rowString.append(row[column] ?? "")
-                if index < row.values.count - 1 {
+                if index < columns.count - 1 {
                     rowString.append(columnSeparator)
                 }
             }

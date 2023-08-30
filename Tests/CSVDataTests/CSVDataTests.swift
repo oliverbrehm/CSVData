@@ -6,6 +6,14 @@ final class CSVDataTests: XCTestCase {
         case id
         case name
         case price
+
+        var title: String {
+            if self == .price {
+                return "Price"
+            } else {
+                return rawValue
+            }
+        }
     }
 
     private enum TestSimpleFormat: String, CSVFormat {
@@ -13,7 +21,7 @@ final class CSVDataTests: XCTestCase {
     }
 
     func testRead() throws {
-        let testCSVString = "id,name,price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let testCSVString = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
         let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
 
         XCTAssertEqual(csvData.rows.count, 3)
@@ -23,6 +31,52 @@ final class CSVDataTests: XCTestCase {
         XCTAssertEqual(
             csvData.csvString().trimmingCharacters(in: .whitespacesAndNewlines),
             testCSVString.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    func testReadWithTitleFieldRawValue() throws {
+        let testCSVString  = "id,name,price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let expectedOutput = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
+
+        XCTAssertEqual(
+            csvData.csvString().trimmingCharacters(in: .whitespacesAndNewlines),
+            expectedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    func testColumnConfiguration() throws {
+        let testCSVString  = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let expectedOutputOnlyName = "name\nBananas\nSugar\nMilk"
+        let expectedOutputAllButPrice = "id,name\n1,Bananas\n2,Sugar\n3,Milk"
+
+        let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
+
+        XCTAssertEqual(
+            csvData.csvString(columnConfiguration: .includeOnly(columns: [.name])).trimmingCharacters(in: .whitespacesAndNewlines),
+            expectedOutputOnlyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        XCTAssertEqual(
+            csvData.csvString(columnConfiguration: .allBut(columns: [.price])).trimmingCharacters(in: .whitespacesAndNewlines),
+            expectedOutputAllButPrice.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    func testReadIncompletColumns() throws {
+        let testCSVString = "id,name\n1,Bananas\n2,Sugar\n3,Milk"
+        let expectedOutputAllColumns = "id,name,Price\n1,Bananas,\n2,Sugar,\n3,Milk,"
+
+        let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
+
+        XCTAssertEqual(
+            csvData.csvString(columnConfiguration: .allBut(columns: [.price])).trimmingCharacters(in: .whitespacesAndNewlines),
+            testCSVString.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+
+        XCTAssertEqual(
+            csvData.csvString().trimmingCharacters(in: .whitespacesAndNewlines),
+            expectedOutputAllColumns.trimmingCharacters(in: .whitespacesAndNewlines)
         )
     }
 
@@ -42,7 +96,7 @@ final class CSVDataTests: XCTestCase {
     }
 
     func testManipulate() throws {
-        let testCSVString = "id,name,price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let testCSVString = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
         let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
         csvData[1][.name] = "Test"
 
@@ -127,7 +181,7 @@ final class CSVDataTests: XCTestCase {
     }
 
     func testGuessSeparators() throws {
-        let testCSVString = "id,name,price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let testCSVString = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
 
         // guess both
         var csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
@@ -166,18 +220,25 @@ final class CSVDataTests: XCTestCase {
     }
 
     func testInvalidHeader() throws {
-        let testCSVString = "id,name,price,failing\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let testCSVString = "id,name,Price,failing\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
 
         XCTAssertThrowsError(try CSVData<TestShoppingItem>(csvString: testCSVString)) {
-            XCTAssertEqual($0 as? CSVParseError, CSVParseError.invalidHeaderFormat)
+            if let error = $0 as? CSVParseError, case let .invalidHeaderField(field) = error {
+                XCTAssertEqual(field, "failing")
+            } else {
+                XCTFail("Incorrect error for invalid header field: \($0).")
+            }
         }
     }
 
     func testInvalidRow() throws {
-        let testInvalidCSVString = "id,name,price\n1,Bananas,1.20,Invalid column\n2,Sugar,2.30\n3,Milk,1.99"
+        let testInvalidCSVString = "id,name,Price\n1,Bananas,1.20,Invalid column\n2,Sugar,2.30\n3,Milk,1.99"
 
         XCTAssertThrowsError(try CSVData<TestShoppingItem>(csvString: testInvalidCSVString, continueOnInvalidRow: false)) {
-            XCTAssertEqual($0 as? CSVParseError, CSVParseError.invalidRowFormat)
+            guard let error = $0 as? CSVParseError, case .invalidRowFormat = error else {
+                XCTFail("Incorrect error for invalid row: \($0).")
+                return
+            }
         }
 
         let csvData = try CSVData<TestShoppingItem>(csvString: testInvalidCSVString, continueOnInvalidRow: true)
@@ -188,7 +249,7 @@ final class CSVDataTests: XCTestCase {
     func testReadFile() throws {
         let documentsFolder = try XCTUnwrap(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first)
         let csvUrl = documentsFolder.appending(path: "testCSV.csv")
-        let testCSVString = "id,name,price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
+        let testCSVString = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
 
         try testCSVString.write(to: csvUrl, atomically: true, encoding: .utf8)
 

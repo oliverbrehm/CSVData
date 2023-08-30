@@ -16,6 +16,6 @@
 import Foundation
 
 public enum CSVParseError: Error {
-    case invalidHeaderFormat
+    case invalidHeaderField(_ title: String)
     case invalidRowFormat
 }
