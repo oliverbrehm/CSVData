@@ -14,7 +14,7 @@ A Swift package for reading and writing CSV using an enum typed format.
 
 ### Row format definition
 
-Import and export rely on a customately defined format enumeration, impementing the **CSVFormat** protocol. This format should correspond to the CSV row format you want to import or export.
+Import and export rely on a customly defined format enumeration, impementing the **CSVFormat** protocol. This format should correspond to the CSV row format you want to import or export.
 
 ```swift
 private enum TestShoppingItem: String, CSVFormat {
