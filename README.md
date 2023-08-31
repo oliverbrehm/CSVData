@@ -33,15 +33,15 @@ private enum TestShoppingItem: String, CSVFormat {
 To read a CSV string or file, you initialize a CSVData object with a CSV string or url and the previously defined **CSVFormat** enumeration. The separators for rows and columns are guessed automatically, but you can also manually set the properties **rowSeparator** and **columnSeparator**.
 
 ```swift
-func read() {
+func read() throws {
     // read CSV string
     let testCSVString = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
-    let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
-    
+    var csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
+
     // read CSV file on disk
-    let documentsFolder = try XCTUnwrap(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first)
+    let documentsFolder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     let csvUrl = documentsFolder.appending(path: "testCSV.csv")
-    let csvData = try CSVData<TestShoppingItem>(url: csvUrl)
+    csvData = try CSVData<TestShoppingItem>(url: csvUrl)
 }
 ```
 
@@ -50,7 +50,7 @@ func read() {
 To initialize a CSVData object with your own data, call the initializer with an array of any kind of data. Provide a closure as the data source to initialize each value of all column columns.
 
 ```swift
-func createCSVData() -> CSVData {
+func createCSVData() -> CSVData<TestShoppingItem> {
     let csvData = CSVData<TestShoppingItem>(items: Array(0 ..< 10)) { index, column in
         switch column {
         case .id:
