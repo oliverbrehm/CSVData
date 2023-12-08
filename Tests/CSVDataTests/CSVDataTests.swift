@@ -256,6 +256,4 @@ final class CSVDataTests: XCTestCase {
         let csvData = try CSVData<TestShoppingItem>(url: csvUrl)
         XCTAssertEqual(csvData.rows.count, 3)
     }
-
-    // TODO: test column configuration
 }

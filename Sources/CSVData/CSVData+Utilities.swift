@@ -28,9 +28,9 @@ extension CSVData {
         }
     }
 
-    public enum ColumnConfiguration<T: CSVFormat> {
+    public enum ColumnConfiguration<Format: CSVFormat> {
         case all
-        case allBut(columns: [T])
-        case includeOnly(columns: [T])
+        case allBut(columns: [Format])
+        case includeOnly(columns: [Format])
     }
 }
