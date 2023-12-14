@@ -75,7 +75,7 @@ public class CSVData<T: CSVFormat> {
 
         for rowString in rows {
             var row = CSVRow()
-            let columns = rowString.split(separator: actualColumnSeparator)
+            let columns = rowString.split(separator: actualColumnSeparator, omittingEmptySubsequences: false)
 
             if columns.count != includedColumns.count {
                 if continueOnInvalidRow {
@@ -195,7 +195,7 @@ public class CSVData<T: CSVFormat> {
 
         for separator in CSVConstants.possibleSeparators {
             let headerFields = rows[0].split(separator: separator)
-            if headerFields.count > 1, headerFields.count == rows[1].split(separator: separator).count {
+            if headerFields.count > 1, headerFields.count == rows[1].split(separator: separator, omittingEmptySubsequences: false).count {
                 return separator
             }
         }
