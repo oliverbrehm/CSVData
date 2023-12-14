@@ -45,6 +45,16 @@ final class CSVDataTests: XCTestCase {
         )
     }
 
+    func testEmptyColumns() throws {
+        let testCSVString  = "id,name,Price\n1,,1.20\n2,Sugar,2.30\n3,Milk,"
+        let csvData = try CSVData<TestShoppingItem>(csvString: testCSVString)
+
+        XCTAssertEqual(
+            csvData.csvString().trimmingCharacters(in: .whitespacesAndNewlines),
+            testCSVString.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
     func testColumnConfiguration() throws {
         let testCSVString  = "id,name,Price\n1,Bananas,1.20\n2,Sugar,2.30\n3,Milk,1.99"
         let expectedOutputOnlyName = "name\nBananas\nSugar\nMilk"
